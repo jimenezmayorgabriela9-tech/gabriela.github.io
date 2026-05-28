@@ -1,0 +1,307 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>BLACKRIDERS STORE</title>
+
+<style>
+body {margin:0;background:#0b0b0b;color:white;font-family:Arial;}
+header{background:#111;padding:10px;display:flex;align-items:center;}
+.logo{font-size:22px;color:#e60000;font-weight:bold;}
+#buscar{flex:1;margin-left:10px;padding:10px;border-radius:6px;border:none;}
+
+button{background:#e60000;color:white;border:none;padding:10px;border-radius:6px;cursor:pointer;margin-top:5px;}
+
+.container{padding:15px;}
+
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:15px;}
+
+.card{background:#1a1a1a;padding:10px;border-radius:10px;text-align:center;transition:3s; }
+
+.card:hover{
+transform:scale(1.03);
+}
+
+.card img{
+width:100%;
+height:140px;
+object-fit:contain;
+}
+
+.precio{
+color:#00ffcc;
+font-weight:bold;
+}
+
+/* MODAL DETALLE */
+.detalle{
+display:none;
+position:fixed;
+top:50%;
+left:50%;
+transform:translate(-50%,-50%);
+background:#111;
+padding:15px;
+border-radius:10px;
+width:90%;
+max-width:400px;
+max-height:90vh;
+overflow:auto;
+z-index:10;
+}
+
+.detalle img{
+width:100%;
+max-height:180px;
+object-fit:contain;
+}
+
+.overlay{
+display:none;
+position:fixed;
+top:0;
+left:0;
+width:100%;
+height:100%;
+background:rgba(0,0,0,0.7);
+z-index:5;
+}
+
+/* CARRITO */
+.carrito-panel{
+position:fixed;
+right:-320px;
+top:0;
+width:320px;
+height:100%;
+background:#111;
+padding:10px;
+transition:.3s;
+overflow:auto;
+z-index:15;
+}
+
+.carrito-panel.active{
+right:0;
+}
+
+/* PAGO */
+.pago{
+display:none;
+position:fixed;
+top:50%;
+left:50%;
+transform:translate(-50%,-50%);
+background:#111;
+padding:20px;
+border-radius:10px;
+width:300px;
+z-index:20;
+}
+
+.pago input{
+width:100%;
+padding:10px;
+margin:5px 0;
+border-radius:6px;
+border:none;
+}
+</style>
+</head>
+
+<body>
+
+<header>
+<div class="logo">BLACKRIDERS 🏍️</div>
+<input id="buscar" placeholder="Buscar moto...">
+<button onclick="toggleCarrito()">🛒 <span id="contador">0</span></button>
+</header>
+
+<div class="container">
+<div class="grid" id="lista"></div>
+</div>
+
+<!-- OVERLAY -->
+<div class="overlay" id="overlay" onclick="cerrarDetalle()"></div>
+
+<!-- DETALLE -->
+<div class="detalle" id="detalle">
+<img id="dimg">
+<h3 id="dnombre"></h3>
+<p id="dprecio"></p>
+
+<p id="dmotor"></p>
+<p id="drendimiento"></p>
+<p id="dvelocidad"></p>
+
+<button onclick="agregarCarrito()">Comprar 🛒</button>
+<button onclick="cerrarDetalle()">Cerrar</button>
+</div>
+
+<!-- CARRITO -->
+<div class="carrito-panel" id="panelCarrito">
+<h3>Carrito</h3>
+<div id="listaCarrito"></div>
+<p id="total">Total: $0</p>
+<button onclick="abrirPago()">Pagar 💳</button>
+<button onclick="toggleCarrito()">Cerrar</button>
+</div>
+
+<!-- PAGO -->
+<div class="pago" id="pago">
+<h3>Pago con tarjeta 💳</h3>
+<input id="tarjeta" placeholder="Número de tarjeta">
+<input id="nombrePago" placeholder="Nombre del titular">
+<input id="fecha" placeholder="MM/AA">
+<input id="cvv" placeholder="CVV">
+<p id="totalPago"></p>
+<button onclick="procesarPago()">Confirmar pago</button>
+<button onclick="cerrarPago()">Cancelar</button>
+</div>
+
+<script>
+
+/* DATOS */
+let motos = JSON.parse(localStorage.getItem("motos")) || [];
+let carrito = JSON.parse(localStorage.getItem("carrito")) || [];
+
+let actual = null;
+
+/* GUARDAR */
+function guardarDatos(){
+localStorage.setItem("carrito", JSON.stringify(carrito));
+}
+
+/* MOSTRAR */
+function mostrar(){
+lista.innerHTML="";
+
+motos.forEach((m,i)=>{
+lista.innerHTML+=`
+<div class="card">
+<img src="${m.imagen}">
+<h4>${m.nombre}</h4>
+<p class="precio">$${m.precio}</p>
+<button onclick="ver(${i})">Ver moto</button>
+</div>`;
+});
+
+actualizarCarrito();
+}
+
+/* VER DETALLE */
+function ver(i){
+let m = motos[i];
+actual = m;
+
+dimg.src = m.imagen;
+dnombre.innerText = m.nombre;
+dprecio.innerText = "$"+m.precio;
+
+dmotor.innerText = "Motor: " + m.motor;
+drendimiento.innerText = "Rendimiento: " + m.rendimiento;
+dvelocidad.innerText = "Velocidad: " + m.velocidad;
+
+detalle.style.display="block";
+overlay.style.display="block";
+}
+
+/* CERRAR */
+function cerrarDetalle(){
+detalle.style.display="none";
+overlay.style.display="none";
+}
+
+/* CARRITO */
+function agregarCarrito(){
+carrito.push(actual);
+guardarDatos();
+actualizarCarrito();
+}
+
+function actualizarCarrito(){
+
+let suma = 0;
+listaCarrito.innerHTML="";
+
+carrito.forEach((m,i)=>{
+suma += Number(m.precio);
+
+listaCarrito.innerHTML+=`
+<p>${m.nombre} - $${m.precio}
+<button onclick="quitar(${i})">❌</button></p>`;
+});
+
+total.innerText = "Total: $" + suma.toFixed(2);
+totalPago.innerText = "Total a pagar: $" + suma.toFixed(2);
+contador.innerText = carrito.length;
+}
+
+function quitar(i){
+carrito.splice(i,1);
+guardarDatos();
+actualizarCarrito();
+}
+
+function toggleCarrito(){
+panelCarrito.classList.toggle("active");
+}
+
+/* BUSCADOR */
+buscar.addEventListener("input",()=>{
+let texto = buscar.value.toLowerCase();
+
+lista.innerHTML="";
+
+motos.filter(m=>m.nombre.toLowerCase().includes(texto))
+.forEach((m,i)=>{
+lista.innerHTML+=`
+<div class="card">
+<img src="${m.imagen}">
+<h4>${m.nombre}</h4>
+<p class="precio">$${m.precio}</p>
+<button onclick="ver(${i})">Ver moto</button>
+</div>`;
+});
+});
+
+/* PAGO */
+function abrirPago(){
+if(carrito.length==0){
+alert("Carrito vacío ❌");
+return;
+}
+pago.style.display="block";
+}
+
+function cerrarPago(){
+pago.style.display="none";
+}
+
+function procesarPago(){
+
+if(tarjeta.value.length < 12 || cvv.value.length < 3){
+alert("Datos inválidos ❌");
+return;
+}
+
+alert("💳 Pago completado con éxito ✅");
+
+carrito=[];
+guardarDatos();
+actualizarCarrito();
+cerrarPago();
+}
+
+/* INICIO */
+mostrar();
+
+</script>
+
+</body>
+</html>
+
+
+
+
